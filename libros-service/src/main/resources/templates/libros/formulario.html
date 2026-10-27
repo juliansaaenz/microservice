@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: cabeza('Libro')}"></head>
+<body>
+<header th:replace="~{fragmentos :: encabezado}"></header>
+
+<main class="contenido" th:with="esNuevo=${libro.id == null}">
+
+    <!-- ============ CABECERA ============ -->
+    <div class="cabecera-pagina">
+        <a class="volver" th:href="@{/libros}">Volver al catálogo</a>
+        <h1 th:text="${esNuevo} ? 'Agregar libro' : 'Editar libro'">Agregar libro</h1>
+        <p class="nota" th:if="${esNuevo}">
+            Se guarda en <code>biblioteca_libros</code>. prestamos-service lo verá la próxima vez que pida
+            <code>GET /api/libros</code>.
+        </p>
+        <p class="nota" th:unless="${esNuevo}">
+            Estás editando el libro <code th:text="'id ' + ${libro.id}">id 1</code>.
+            Los préstamos guardan este id, por eso no se puede cambiar.
+        </p>
+    </div>
+
+    <div class="editor-layout">
+
+        <!-- ============ COLUMNA DEL FORMULARIO ============ -->
+        <div>
+            <form th:action="@{/libros/guardar}" th:object="${libro}" method="post"
+                  class="formulario-libro" novalidate>
+                <input type="hidden" th:field="*{id}">
+
+                <div class="grupo">
+                    <label for="titulo">Título</label>
+                    <input type="text" th:field="*{titulo}" id="titulo" th:errorclass="con-error"
+                           th:autofocus="${esNuevo}" placeholder="Ej. La vorágine" autocomplete="off">
+                    <span class="error" th:if="${#fields.hasErrors('titulo')}" th:errors="*{titulo}"></span>
+                </div>
+
+                <div class="grupo">
+                    <label for="autor">Autor</label>
+                    <input type="text" th:field="*{autor}" id="autor" th:errorclass="con-error"
+                           placeholder="Ej. José Eustasio Rivera" autocomplete="off">
+                    <span class="error" th:if="${#fields.hasErrors('autor')}" th:errors="*{autor}"></span>
+                </div>
+
+                <div class="fila-doble">
+                    <div class="grupo">
+                        <label for="anio">Año de publicación</label>
+                        <input type="number" th:field="*{anio}" id="anio" placeholder="Ej. 1924"
+                               min="1000" max="2100" inputmode="numeric">
+                        <span class="ayuda">Opcional.</span>
+                    </div>
+
+                    <div class="grupo">
+                        <label for="disponibles">Ejemplares en estante</label>
+                        <div class="contador">
+                            <button type="button" data-paso="-1" aria-label="Quitar un ejemplar">−</button>
+                            <input type="number" th:field="*{disponibles}" id="disponibles"
+                                   th:errorclass="con-error" min="0" max="99" inputmode="numeric">
+                            <button type="button" data-paso="1" aria-label="Agregar un ejemplar">+</button>
+                        </div>
+                        <span class="ayuda">Cada préstamo descuenta uno por la API.</span>
+                        <span class="error" th:if="${#fields.hasErrors('disponibles')}" th:errors="*{disponibles}"></span>
+                    </div>
+                </div>
+
+                <div class="envio">
+                    <button type="submit" class="boton">Guardar libro</button>
+                    <a th:href="@{/libros}">Cancelar</a>
+                </div>
+            </form>
+
+            <!-- Solo al editar -->
+            <section class="zona-peligro" th:unless="${esNuevo}">
+                <h2>Eliminar este libro</h2>
+                <p>Si tiene préstamos activos en prestamos-service, su devolución fallará: este servicio
+                   ya no lo encontrará y responderá 404. Es una de las complicaciones de separar los datos.</p>
+                <form th:action="@{/libros/{id}/eliminar(id=${libro.id})}" method="post"
+                      onsubmit="return confirm('¿Eliminar este libro del catálogo?');">
+                    <button type="submit" class="boton-peligro">Eliminar libro</button>
+                </form>
+            </section>
+        </div>
+
+        <!-- ============ VISTA PREVIA ============ -->
+        <aside class="vista-previa" aria-live="polite">
+            <h2>Vista previa</h2>
+            <div class="tarjeta-previa">
+                <span class="lomo-libro" aria-hidden="true"></span>
+                <div class="tarjeta-cuerpo">
+                    <strong data-previa="titulo">Título del libro</strong>
+                    <span class="tarjeta-autor" data-previa="autor">Autor</span>
+                    <span class="tarjeta-stock">
+                        <span class="ejemplares" data-previa="barras" aria-hidden="true"></span>
+                        <span data-previa="stock"></span>
+                    </span>
+                </div>
+            </div>
+            <p class="nota-previa">Así aparecerá en el catálogo y en las tarjetas de “Nuevo préstamo”.</p>
+
+            <h3>Lo que responderá la API</h3>
+            <p class="quien">
+                <code th:text="${esNuevo} ? 'GET /api/libros/{id}' : 'GET /api/libros/' + ${libro.id}">GET /api/libros/{id}</code>
+                <span th:if="${esNuevo}">(el id lo asigna MySQL al guardar)</span>
+            </p>
+            <pre class="json" data-json th:data-id="${libro.id}"></pre>
+        </aside>
+    </div>
+</main>
+
+<script>
+    (function () {
+        var form = document.querySelector('.formulario-libro');
+        var campos = {
+            titulo: form.querySelector('#titulo'),
+            autor: form.querySelector('#autor'),
+            anio: form.querySelector('#anio'),
+            disponibles: form.querySelector('#disponibles')
+        };
+        var json = document.querySelector('[data-json]');
+        var id = json.getAttribute('data-id');
+        function previa(nombre) { return document.querySelector('[data-previa="' + nombre + '"]'); }
+        function numero(v) { var x = parseInt(v, 10); return isNaN(x) ? null : x; }
+
+        function pintar() {
+            var titulo = campos.titulo.value.trim();
+            var autor = campos.autor.value.trim();
+            var anio = numero(campos.anio.value);
+            var disp = numero(campos.disponibles.value);
+
+            previa('titulo').textContent = titulo || 'Título del libro';
+            previa('titulo').classList.toggle('vacio-texto', !titulo);
+            previa('autor').textContent = (autor || 'Autor') + (anio ? ', ' + anio : '');
+
+            var barras = previa('barras');
+            barras.innerHTML = '';
+            for (var i = 0; i < Math.max(0, Math.min(disp || 0, 10)); i++) {
+                var s = document.createElement('span');
+                s.className = 'ejemplar';
+                barras.appendChild(s);
+            }
+            var stock = previa('stock');
+            stock.textContent = !disp ? 'Agotado' : (disp === 1 ? '1 en estante' : disp + ' en estante');
+            stock.classList.toggle('agotado-texto', !disp);
+
+            json.textContent = JSON.stringify({
+                id: id ? Number(id) : null,
+                titulo: titulo,
+                autor: autor,
+                anio: anio,
+                disponibles: disp === null ? 0 : disp
+            }, null, 2);
+        }
+
+        Object.keys(campos).forEach(function (k) { campos[k].addEventListener('input', pintar); });
+
+        document.querySelectorAll('[data-paso]').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                var v = (numero(campos.disponibles.value) || 0) + Number(boton.getAttribute('data-paso'));
+                campos.disponibles.value = Math.max(0, Math.min(99, v));
+                pintar();
+            });
+        });
+
+        pintar();
+    })();
+</script>
+</body>
+</html>

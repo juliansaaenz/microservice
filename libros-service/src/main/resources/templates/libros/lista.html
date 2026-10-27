@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: cabeza('Catálogo')}"></head>
+<body>
+<header th:replace="~{fragmentos :: encabezado}"></header>
+
+<main class="contenido">
+
+    <!-- ============ CABECERA ============ -->
+    <div class="cabecera-lista">
+        <section class="intro">
+            <h1>Catálogo de la biblioteca</h1>
+            <p>Este servicio es el dueño de los libros y de cuántos ejemplares quedan en el estante.
+               Préstamos no toca esta base de datos: le pregunta a este servicio por la API.</p>
+        </section>
+        <div class="acciones-cabecera">
+            <a class="boton-secundario" th:href="@{/api/libros}" target="_blank" rel="noopener">
+                Ver JSON <code>/api/libros</code>
+            </a>
+            <a class="boton" th:href="@{/libros/nuevo}">Agregar libro</a>
+        </div>
+    </div>
+
+    <p class="aviso" th:if="${exito}" th:text="${exito}"></p>
+    <p class="aviso error" th:if="${error}" th:text="${error}"></p>
+
+    <!-- ============ BUSCADOR Y FILTROS ============ -->
+    <div class="barra-tabla" th:unless="${#lists.isEmpty(libros)}"
+         th:with="total=${#lists.size(libros)}, conStock=${#lists.size(libros.?[disponibles > 0])}">
+        <div class="barra-izquierda">
+            <div class="filtros" role="group" aria-label="Filtrar libros">
+                <button type="button" data-filtro="todos" aria-pressed="true">
+                    Todos <span class="cuenta" th:text="${total}">0</span>
+                </button>
+                <button type="button" data-filtro="disponible" aria-pressed="false">
+                    Disponibles <span class="cuenta" th:text="${conStock}">0</span>
+                </button>
+                <button type="button" data-filtro="agotado" aria-pressed="false">
+                    Agotados <span class="cuenta" th:text="${total - conStock}">0</span>
+                </button>
+            </div>
+            <label class="buscador">
+                <span class="oculto">Buscar por título o autor</span>
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4" stroke-linecap="round"/>
+                </svg>
+                <input type="search" placeholder="Buscar título o autor" data-buscador autocomplete="off">
+            </label>
+        </div>
+        <p class="nota-tabla">
+            <strong th:text="${#aggregates.sum(libros.![disponibles])}">10</strong> ejemplares en estante
+        </p>
+    </div>
+
+    <!-- ============ TABLA ============ -->
+    <div class="tabla-envoltura">
+        <table class="tabla">
+            <thead>
+            <tr>
+                <th>Título</th>
+                <th>Autor</th>
+                <th>Año</th>
+                <th>En estante</th>
+                <th><span class="oculto">Acciones</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="l : ${libros}"
+                th:data-estado="${l.disponibles > 0} ? 'disponible' : 'agotado'"
+                th:data-buscar="${l.titulo + ' ' + l.autor}"
+                th:classappend="${l.disponibles == 0} ? 'agotado'">
+                <td>
+                    <div class="titulo">
+                        <span class="lomo" aria-hidden="true"></span>
+                        <span>
+                            <span th:text="${l.titulo}">Título</span>
+                            <small th:text="'id ' + ${l.id}">id 1</small>
+                        </span>
+                    </div>
+                </td>
+                <td th:text="${l.autor}">Autor</td>
+                <td class="anio" th:text="${l.anio != null ? l.anio : '—'}">2000</td>
+                <td>
+                    <span class="ejemplares" aria-hidden="true"><th:block th:if="${l.disponibles > 0}"><span class="ejemplar"
+                          th:each="i : ${#numbers.sequence(1, l.disponibles > 10 ? 10 : l.disponibles)}"></span></th:block></span>
+                    <span class="cantidad" th:classappend="${l.disponibles == 0} ? 'agotado'"
+                          th:text="${l.disponibles == 0 ? 'Agotado' : (l.disponibles == 1 ? '1 disponible' : l.disponibles + ' disponibles')}">3 disponibles</span>
+                </td>
+                <td class="acciones">
+                    <div class="botones-fila">
+                        <a class="boton-editar" th:href="@{/libros/{id}/editar(id=${l.id})}">Editar</a>
+                        <form th:action="@{/libros/{id}/eliminar(id=${l.id})}" method="post"
+                              onsubmit="return confirm('¿Eliminar este libro del catálogo?');">
+                            <button type="submit" class="boton-eliminar">Eliminar</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+
+            <tr data-sin-resultados hidden>
+                <td colspan="5" class="vacio">Ningún libro coincide con la búsqueda.</td>
+            </tr>
+
+            <tr th:if="${#lists.isEmpty(libros)}">
+                <td colspan="5" class="vacio vacio-catalogo">
+                    <strong>El catálogo está vacío</strong>
+                    Sin libros, prestamos-service no tiene nada que prestar.<br>
+                    <a th:href="@{/libros/nuevo}">Agregar el primer libro</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ============ BITÁCORA ============ -->
+    <section class="bitacora">
+        <div class="bitacora-cabecera">
+            <h2>Peticiones que llegaron por la API</h2>
+            <a th:href="@{/libros}">Actualizar</a>
+        </div>
+        <p class="nota">Cuando prestamos-service consulta este servicio, la petición aparece aquí y en la
+            consola de NetBeans. Son las mismas que préstamos muestra como “enviadas”, vistas desde este lado.</p>
+
+        <ol class="registros">
+            <li th:each="r : ${registros}">
+                <time th:text="${r.hora}">10:00:00</time>
+                <span class="metodo" th:classappend="${'m-' + #strings.toLowerCase(r.metodo)}"
+                      th:text="${r.metodo}">GET</span>
+                <code th:text="${r.ruta}">/api/libros</code>
+                <span class="estado" th:classappend="${r.exito} ? 'ok' : 'falla'" th:text="${r.estado}">200</span>
+            </li>
+            <li th:if="${#lists.isEmpty(registros)}" class="sin-registros">
+                Todavía no ha llegado ninguna petición a /api. Registra un préstamo en el puerto 8082 y actualiza.
+            </li>
+        </ol>
+    </section>
+</main>
+
+<script>
+    (function () {
+        function normalizar(s) {
+            return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+        var filas = Array.prototype.slice.call(document.querySelectorAll('tr[data-estado]'));
+        filas.forEach(function (tr) { tr._texto = normalizar(tr.getAttribute('data-buscar')); });
+
+        var botones = document.querySelectorAll('.filtros button');
+        var buscador = document.querySelector('[data-buscador]');
+        var sinResultados = document.querySelector('[data-sin-resultados]');
+        var filtro = 'todos';
+
+        function aplicar() {
+            var q = buscador ? normalizar(buscador.value.trim()) : '';
+            var visibles = 0;
+            filas.forEach(function (tr) {
+                var ver = (filtro === 'todos' || tr.getAttribute('data-estado') === filtro)
+                       && (!q || tr._texto.indexOf(q) !== -1);
+                tr.hidden = !ver;
+                if (ver) visibles++;
+            });
+            sinResultados.hidden = visibles > 0 || filas.length === 0;
+        }
+
+        botones.forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                filtro = boton.getAttribute('data-filtro');
+                botones.forEach(function (b) { b.setAttribute('aria-pressed', b === boton ? 'true' : 'false'); });
+                aplicar();
+            });
+        });
+        if (buscador) buscador.addEventListener('input', aplicar);
+    })();
+</script>
+</body>
+</html>

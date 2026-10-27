@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="cabeza(titulo)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#2F5D46">
+    <title th:text="${titulo} + ' | libros-service'">libros-service</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- ?v= obliga al navegador a bajar el CSS nuevo; súbele el número cada vez que lo cambies -->
+    <link rel="stylesheet" th:href="@{/css/estilos.css(v=2)}">
+</head>
+<body>
+
+<!-- ===================== ENCABEZADO ===================== -->
+<header th:fragment="encabezado" class="encabezado">
+    <a class="marca" th:href="@{/libros}" aria-label="libros-service, ir al catálogo">
+        <svg class="marca-icono" viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="4" y="7" width="6" height="19" rx="1"/>
+            <rect x="12" y="4" width="6" height="22" rx="1"/>
+            <rect x="20" y="9" width="6" height="17" rx="1" transform="rotate(-14 23 17.5)"/>
+            <rect x="2" y="27" width="28" height="2.5" rx="1"/>
+        </svg>
+        <span class="marca-texto">
+            <span class="servicio">libros-service</span>
+            <span class="marca-sub">Biblioteca SENA</span>
+        </span>
+        <span class="puerto">:8081</span>
+    </a>
+
+    <nav aria-label="Principal">
+        <a th:href="@{/libros}" data-ruta="/libros">Catálogo</a>
+        <a th:href="@{/libros/nuevo}" data-ruta="/libros/nuevo">Agregar libro</a>
+        <a href="http://localhost:8082/prestamos" class="otro-servicio"
+           data-servicio-url="http://localhost:8082">
+            <span class="punto" data-estado-otro aria-hidden="true"></span>
+            Ir a préstamos <small>:8082</small>
+            <span class="oculto" data-estado-texto>Comprobando estado</span>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            // 1) Marca el enlace de la página actual
+            var ruta = location.pathname.replace(/\/$/, '');
+            document.querySelectorAll('.encabezado [data-ruta]').forEach(function (a) {
+                if (a.getAttribute('data-ruta') === ruta) a.setAttribute('aria-current', 'page');
+            });
+
+            // 2) Estado en vivo de prestamos-service (pide su CSS, no su API)
+            var enlace = document.querySelector('.encabezado [data-servicio-url]');
+            var punto = enlace.querySelector('[data-estado-otro]');
+            var texto = enlace.querySelector('[data-estado-texto]');
+            var url = enlace.getAttribute('data-servicio-url') + '/css/estilos.css';
+
+            function marcar(enLinea) {
+                punto.className = 'punto ' + (enLinea ? 'en-linea' : 'fuera');
+                texto.textContent = enLinea ? 'prestamos-service en línea' : 'prestamos-service sin respuesta';
+                enlace.title = texto.textContent;
+            }
+            function comprobar() {
+                fetch(url, { mode: 'no-cors', cache: 'no-store' })
+                    .then(function () { marcar(true); })
+                    .catch(function () { marcar(false); });
+            }
+            comprobar();
+            setInterval(comprobar, 5000);
+        })();
+    </script>
+</header>
+
+</body>
+</html>
