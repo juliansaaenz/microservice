@@ -1,0 +1,13 @@
+co\sena\biblioteca\prestamos\controlador\PrestamoVistaController.class
+co\sena\biblioteca\prestamos\config\ClienteHttpConfig.class
+co\sena\biblioteca\prestamos\controlador\PrestamoApiController.class
+co\sena\biblioteca\prestamos\modelo\Prestamo.class
+co\sena\biblioteca\prestamos\cliente\BitacoraSalida.class
+co\sena\biblioteca\prestamos\servicio\PrestamoService.class
+co\sena\biblioteca\prestamos\PrestamosServiceApplication.class
+co\sena\biblioteca\prestamos\cliente\LibrosClient.class
+co\sena\biblioteca\prestamos\modelo\PrestamoForm.class
+co\sena\biblioteca\prestamos\cliente\LibroDto.class
+co\sena\biblioteca\prestamos\cliente\ServicioLibrosException.class
+co\sena\biblioteca\prestamos\cliente\BitacoraSalida$Registro.class
+co\sena\biblioteca\prestamos\repositorio\PrestamoRepository.class

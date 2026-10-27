@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="cabeza(titulo)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#34407A">
+    <title th:text="${titulo} + ' | prestamos-service'">prestamos-service</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- ?v= obliga al navegador a bajar el CSS nuevo; súbele el número cada vez que lo cambies -->
+    <link rel="stylesheet" th:href="@{/css/estilos.css(v=2)}">
+</head>
+<body>
+
+<!-- ===================== ENCABEZADO ===================== -->
+<header th:fragment="encabezado" class="encabezado">
+    <a class="marca" th:href="@{/prestamos}" aria-label="prestamos-service, ir al inicio">
+        <svg class="marca-icono" viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="4" y="7" width="6" height="19" rx="1"/>
+            <rect x="12" y="4" width="6" height="22" rx="1"/>
+            <rect x="20" y="9" width="6" height="17" rx="1" transform="rotate(-14 23 17.5)"/>
+            <rect x="2" y="27" width="28" height="2.5" rx="1"/>
+        </svg>
+        <span class="marca-texto">
+            <span class="servicio">prestamos-service</span>
+            <span class="marca-sub">Biblioteca SENA</span>
+        </span>
+        <span class="puerto">:8082</span>
+    </a>
+
+    <nav aria-label="Principal">
+        <a th:href="@{/prestamos}" data-ruta="/prestamos">Préstamos</a>
+        <a th:href="@{/prestamos/nuevo}" data-ruta="/prestamos/nuevo">Nuevo préstamo</a>
+        <a th:href="${librosUrl} + '/libros'" class="otro-servicio">
+            Ir al catálogo <small>:8081</small>
+        </a>
+    </nav>
+
+    <script>
+        // Marca el enlace de la página actual
+        (function () {
+            var ruta = location.pathname.replace(/\/$/, '');
+            document.querySelectorAll('.encabezado [data-ruta]').forEach(function (a) {
+                if (a.getAttribute('data-ruta') === ruta) a.setAttribute('aria-current', 'page');
+            });
+        })();
+    </script>
+</header>
+
+<!-- ===================== DIAGRAMA DE LA PETICIÓN ===================== -->
+<section th:fragment="ruta" class="ruta" aria-labelledby="ruta-titulo" th:data-libros="${librosUrl}">
+    <h2 id="ruta-titulo" class="ruta-titulo">Cómo viaja una petición</h2>
+
+    <div class="ruta-mapa">
+        <article class="nodo prestamos">
+            <header>
+                <strong>prestamos-service</strong>
+                <span class="host">localhost:8082</span>
+            </header>
+            <p>Registra quién se llevó qué libro.</p>
+            <dl>
+                <dt>Base de datos</dt>
+                <dd><code>biblioteca_prestamos</code></dd>
+                <dt>Estado</dt>
+                <dd><span class="punto en-linea"></span><span>Estás aquí</span></dd>
+            </dl>
+        </article>
+
+        <div class="cable" aria-hidden="true">
+            <span class="carril ida">
+                <span class="carril-etiqueta">Petición HTTP</span>
+                <span class="cable-linea"><span class="paquete"></span></span>
+            </span>
+            <span class="carril vuelta">
+                <span class="cable-linea"><span class="paquete"></span></span>
+                <span class="carril-etiqueta">Respuesta JSON</span>
+            </span>
+            <ul class="cable-rutas">
+                <li><code><b>GET</b>/api/libros</code></li>
+                <li><code><b>PUT</b>/api/libros/{id}/prestar</code></li>
+                <li><code><b>PUT</b>/api/libros/{id}/devolver</code></li>
+            </ul>
+        </div>
+
+        <article class="nodo libros">
+            <header>
+                <strong>libros-service</strong>
+                <span class="host" th:text="${#strings.replace(librosUrl, 'http://', '')}">localhost:8081</span>
+            </header>
+            <p>Dueño del catálogo y de los ejemplares.</p>
+            <dl>
+                <dt>Base de datos</dt>
+                <dd><code>biblioteca_libros</code></dd>
+                <dt>Estado</dt>
+                <dd><span class="punto" data-estado-punto></span><span data-estado-texto>Comprobando…</span></dd>
+            </dl>
+        </article>
+    </div>
+
+    <script>
+        // Revisa cada 5 s si libros-service está encendido.
+        // Pide el CSS (no /api) para no llenar la bitácora de peticiones.
+        (function () {
+            var seccion = document.currentScript.closest('.ruta');
+            var url = seccion.getAttribute('data-libros') + '/css/estilos.css';
+            var punto = seccion.querySelector('[data-estado-punto]');
+            var texto = seccion.querySelector('[data-estado-texto]');
+
+            function marcar(enLinea) {
+                seccion.classList.toggle('caido', !enLinea);
+                punto.className = 'punto ' + (enLinea ? 'en-linea' : 'fuera');
+                texto.textContent = enLinea ? 'En línea' : 'Sin respuesta';
+            }
+            function comprobar() {
+                fetch(url, { mode: 'no-cors', cache: 'no-store' })
+                    .then(function () { marcar(true); })
+                    .catch(function () { marcar(false); });
+            }
+            comprobar();
+            setInterval(comprobar, 5000);
+        })();
+    </script>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: cabeza('Préstamos')}"></head>
+<body>
+<header th:replace="~{fragmentos :: encabezado}"></header>
+
+<main class="contenido">
+
+    <!-- ============ CABECERA ============ -->
+    <div class="cabecera-lista">
+        <section class="intro">
+            <h1>Préstamos</h1>
+            <p>Este servicio registra quién se llevó qué libro. No sabe cuántos ejemplares hay:
+               para eso le pregunta a libros-service cada vez que se presta o se devuelve uno.</p>
+        </section>
+        <a class="boton" th:href="@{/prestamos/nuevo}"><span class="mas" aria-hidden="true">+</span> Registrar préstamo</a>
+    </div>
+
+    <!-- ============ LA RED (zona oscura) ============ -->
+    <div th:replace="~{fragmentos :: ruta}"></div>
+
+    <p class="aviso" th:if="${exito}" th:text="${exito}"></p>
+    <p class="aviso error" th:if="${error}" th:text="${error}"></p>
+
+    <!-- ============ FILTROS ============ -->
+    <div class="barra-tabla" th:unless="${#lists.isEmpty(prestamos)}"
+         th:with="total=${#lists.size(prestamos)}, activos=${#lists.size(prestamos.?[activo])}">
+        <div class="filtros" role="group" aria-label="Filtrar préstamos">
+            <button type="button" data-filtro="todos" aria-pressed="true">
+                Todos <span class="cuenta" th:text="${total}">0</span>
+            </button>
+            <button type="button" data-filtro="activo" aria-pressed="false">
+                Prestados <span class="cuenta" th:text="${activos}">0</span>
+            </button>
+            <button type="button" data-filtro="devuelto" aria-pressed="false">
+                Devueltos <span class="cuenta" th:text="${total - activos}">0</span>
+            </button>
+        </div>
+        <p class="nota-tabla">Al devolver, este servicio le avisa a libros-service para que sume el ejemplar.</p>
+    </div>
+
+    <!-- ============ TABLA ============ -->
+    <div class="tabla-envoltura">
+        <table class="tabla">
+            <thead>
+            <tr>
+                <th>Libro</th>
+                <th>Estudiante</th>
+                <th>Prestado</th>
+                <th>Devuelto</th>
+                <th>Estado</th>
+                <th><span class="oculto">Acciones</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="p : ${prestamos}"
+                th:data-estado="${p.activo} ? 'activo' : 'devuelto'"
+                th:classappend="${p.activo} ? '' : 'devuelto'">
+                <td>
+                    <div class="titulo">
+                        <span class="lomo" aria-hidden="true"></span>
+                        <span>
+                            <span th:text="${p.tituloLibro}">Título</span>
+                            <small th:text="'libroId ' + ${p.libroId} + ', vive en libros-service'">libroId 1</small>
+                        </span>
+                    </div>
+                </td>
+                <td>
+                    <span class="estudiante">
+                        <span class="inicial" aria-hidden="true"
+                              th:text="${#strings.isEmpty(p.estudiante)} ? '?' : ${#strings.toUpperCase(#strings.substring(p.estudiante, 0, 1))}">A</span>
+                        <span th:text="${p.estudiante}">Estudiante</span>
+                    </span>
+                </td>
+                <td class="fecha">
+                    <span class="sello" th:text="${#temporals.format(p.fechaPrestamo, 'dd/MM/yyyy')}">01/01/2026</span>
+                </td>
+                <td class="fecha">
+                    <span th:if="${p.fechaDevolucion != null}" class="sello devuelto"
+                          th:text="${#temporals.format(p.fechaDevolucion, 'dd/MM/yyyy')}">02/01/2026</span>
+                    <span th:if="${p.fechaDevolucion == null}" class="sin-fecha">—</span>
+                </td>
+                <td>
+                    <span class="etiqueta" th:classappend="${p.activo} ? 'activo' : 'devuelto'"
+                          th:text="${p.activo} ? 'Prestado' : 'Devuelto'">Prestado</span>
+                </td>
+                <td class="acciones">
+                    <form th:if="${p.activo}" th:action="@{/prestamos/{id}/devolver(id=${p.id})}"
+                          method="post" data-devolver>
+                        <button type="submit" class="boton-devolver">Registrar devolución</button>
+                    </form>
+                </td>
+            </tr>
+
+            <tr data-sin-resultados hidden>
+                <td colspan="6" class="vacio">No hay préstamos con ese estado.</td>
+            </tr>
+
+            <tr th:if="${#lists.isEmpty(prestamos)}">
+                <td colspan="6" class="vacio vacio-prestamos">
+                    <strong>Aún no hay préstamos</strong>
+                    El primero que registres hará viajar dos peticiones a libros-service.<br>
+                    <a class="boton" th:href="@{/prestamos/nuevo}">Registrar el primero</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ============ BITÁCORA (zona oscura) ============ -->
+    <section class="bitacora">
+        <div class="bitacora-cabecera">
+            <h2>Peticiones que este servicio envió a libros-service</h2>
+            <a th:href="@{/prestamos}">Actualizar</a>
+        </div>
+        <p class="nota">Cada fila es una petición HTTP real que salió de aquí. Compárala con la lista
+            “Peticiones que llegaron por la API” en el catálogo: son las mismas, vistas desde el otro lado.</p>
+
+        <ol class="registros">
+            <li th:each="t : ${traza}">
+                <time th:text="${t.hora}">10:00:00</time>
+                <span class="metodo" th:classappend="${'m-' + #strings.toLowerCase(t.metodo)}"
+                      th:text="${t.metodo}">GET</span>
+                <code><span class="host-tenue" th:text="${librosUrl}">http://localhost:8081</span><span
+                          th:text="${#strings.replace(t.url, librosUrl, '')}">/api/libros</span></code>
+                <span class="estado" th:classappend="${t.exito} ? 'ok' : 'falla'" th:text="${t.estado}">200</span>
+                <span class="ms" th:text="${t.milisegundos} + ' ms'">12 ms</span>
+            </li>
+            <li th:if="${#lists.isEmpty(traza)}" class="sin-registros">
+                Todavía no se ha enviado ninguna petición. Registra un préstamo y vuelve aquí.
+            </li>
+        </ol>
+    </section>
+</main>
+
+<script>
+    (function () {
+        // Filtros Todos / Prestados / Devueltos
+        var botones = document.querySelectorAll('.filtros button');
+        var filas = document.querySelectorAll('tr[data-estado]');
+        var sinResultados = document.querySelector('[data-sin-resultados]');
+
+        botones.forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                var filtro = boton.getAttribute('data-filtro');
+                var visibles = 0;
+                botones.forEach(function (b) { b.setAttribute('aria-pressed', b === boton ? 'true' : 'false'); });
+                filas.forEach(function (tr) {
+                    var ver = filtro === 'todos' || tr.getAttribute('data-estado') === filtro;
+                    tr.hidden = !ver;
+                    if (ver) visibles++;
+                });
+                sinResultados.hidden = visibles > 0 || filas.length === 0;
+            });
+        });
+
+        // Botón de devolución mientras viaja la petición
+        document.querySelectorAll('form[data-devolver]').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                var b = form.querySelector('button');
+                b.disabled = true;
+                b.textContent = 'Avisando a libros-service…';
+            });
+        });
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: cabeza('Nuevo préstamo')}"></head>
+<body>
+<header th:replace="~{fragmentos :: encabezado}"></header>
+
+<main class="contenido">
+    <div class="cabecera-pagina">
+        <a class="volver" th:href="@{/prestamos}">Volver a préstamos</a>
+        <h1>Nuevo préstamo</h1>
+        <p class="nota">Estos libros no están en este servicio: se acaban de pedir con
+            <code th:text="'GET ' + ${librosUrl} + '/api/libros'">GET http://localhost:8081/api/libros</code></p>
+    </div>
+
+    <p class="aviso error" th:if="${errorServicio}">
+        <span th:text="${errorServicio}">libros-service no responde.</span>
+        <a th:href="@{/prestamos/nuevo}">Intentar de nuevo</a>
+    </p>
+
+    <div class="nuevo-layout">
+
+        <!-- ============ FORMULARIO (zona clara: datos) ============ -->
+        <form th:action="@{/prestamos}" th:object="${form}" method="post"
+              class="formulario-prestamo" novalidate>
+
+            <fieldset class="grupo">
+                <legend>
+                    <span class="paso-num" aria-hidden="true">1</span> Elige el libro
+                    <span class="origen">viene de libros-service</span>
+                </legend>
+                <span class="ayuda">Los libros agotados aparecen punteados y no se pueden elegir.</span>
+                <p class="error" th:if="${#fields.hasErrors('libroId')}" th:errors="*{libroId}"></p>
+
+                <div class="libros-opciones" th:unless="${#lists.isEmpty(libros)}">
+                    <label class="opcion-libro" th:each="l : ${libros}">
+                        <input type="radio"
+                               th:field="*{libroId}"
+                               th:value="${l.id}"
+                               th:disabled="${l.disponibles == 0}"
+                               th:data-titulo="${l.titulo}">
+                        <span class="tarjeta">
+                            <span class="lomo-libro" aria-hidden="true"></span>
+                            <span class="tarjeta-cuerpo">
+                                <strong th:text="${l.titulo}">Título del libro</strong>
+                                <span class="tarjeta-autor"
+                                      th:text="${l.autor + (l.anio != null ? ', ' + l.anio : '')}">Autor, 2000</span>
+                                <span class="tarjeta-stock">
+                                    <span class="ejemplares" aria-hidden="true"><th:block th:if="${l.disponibles > 0}"><span class="ejemplar"
+                                          th:each="i : ${#numbers.sequence(1, l.disponibles > 10 ? 10 : l.disponibles)}"></span></th:block></span>
+                                    <span th:if="${l.disponibles == 0}" class="agotado-texto">Agotado</span>
+                                    <span th:unless="${l.disponibles == 0}"
+                                          th:text="${l.disponibles == 1 ? '1 en estante' : l.disponibles + ' en estante'}">3 en estante</span>
+                                </span>
+                            </span>
+                            <span class="tarjeta-id" th:text="'id ' + ${l.id}">id 1</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="vacio-libros" th:if="${#lists.isEmpty(libros) and errorServicio == null}">
+                    El catálogo está vacío.
+                    <a th:href="${librosUrl} + '/libros/nuevo'">Agrega un libro en libros-service</a>.
+                </div>
+                <div class="vacio-libros" th:if="${#lists.isEmpty(libros) and errorServicio != null}">
+                    No se pudo traer la lista de libros. Enciende libros-service y vuelve a intentar.
+                </div>
+            </fieldset>
+
+            <div class="grupo">
+                <label for="estudiante"><span class="paso-num" aria-hidden="true">2</span> ¿Quién se lo lleva?</label>
+                <span class="ayuda">La fecha del préstamo se guarda automáticamente con el día de hoy.</span>
+                <input type="text" th:field="*{estudiante}" id="estudiante"
+                       placeholder="Nombre y apellido" autocomplete="off">
+                <p class="error" th:if="${#fields.hasErrors('estudiante')}" th:errors="*{estudiante}"></p>
+            </div>
+
+            <div class="envio">
+                <button type="submit" class="boton" data-boton-registrar>Registrar préstamo</button>
+                <a th:href="@{/prestamos}">Cancelar</a>
+            </div>
+        </form>
+
+        <!-- ============ PANEL: QUÉ VA A PASAR (zona oscura: la red) ============ -->
+        <aside class="pasos" aria-labelledby="pasos-titulo">
+            <h2 id="pasos-titulo">Al registrar pasa esto</h2>
+            <p class="elegido">Libro elegido: <strong data-titulo-elegido>ninguno todavía</strong></p>
+
+            <ol>
+                <li>
+                    <span class="quien">prestamos-service → libros-service</span>
+                    <code>GET /api/libros/<b data-id>{id}</b></code>
+                    <p>¿El libro existe? Si no, responde 404.</p>
+                </li>
+                <li>
+                    <span class="quien">prestamos-service → libros-service</span>
+                    <code>PUT /api/libros/<b data-id>{id}</b>/prestar</code>
+                    <p>Descuenta un ejemplar. Si ya no queda, responde 409.</p>
+                </li>
+                <li class="local">
+                    <span class="quien">prestamos-service → su propia base</span>
+                    <code>INSERT INTO prestamos</code>
+                    <p>Guarda el préstamo en <em>biblioteca_prestamos</em>.</p>
+                </li>
+            </ol>
+
+            <p class="advertencia">Si libros-service está apagado, el paso 1 falla y no se guarda nada.</p>
+        </aside>
+    </div>
+</main>
+
+<script>
+    (function () {
+        var radios = document.querySelectorAll('input[name="libroId"]');
+        var ids = document.querySelectorAll('[data-id]');
+        var titulo = document.querySelector('[data-titulo-elegido]');
+        var panel = document.querySelector('.pasos');
+        var form = document.querySelector('.formulario-prestamo');
+        var boton = document.querySelector('[data-boton-registrar]');
+
+        function actualizar() {
+            var elegido = document.querySelector('input[name="libroId"]:checked');
+            ids.forEach(function (e) { e.textContent = elegido ? elegido.value : '{id}'; });
+            titulo.textContent = elegido ? elegido.getAttribute('data-titulo') : 'ninguno todavía';
+            panel.classList.toggle('listo', !!elegido);
+        }
+        radios.forEach(function (r) { r.addEventListener('change', actualizar); });
+        actualizar();
+
+        form.addEventListener('submit', function () {
+            boton.disabled = true;
+            boton.textContent = 'Consultando a libros-service…';
+        });
+        // Si el usuario vuelve con "Atrás", el botón queda normal otra vez
+        window.addEventListener('pageshow', function () {
+            boton.disabled = false;
+            boton.textContent = 'Registrar préstamo';
+        });
+    })();
+</script>
+</body>
+</html>
